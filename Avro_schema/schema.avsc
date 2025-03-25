@@ -1,0 +1,16 @@
+{
+  "doc": "Schema for yolo home",
+  "type": "record",
+  "namespace": "com.yolohome",
+  "name": "YoloHome",
+  "fields": [
+    {"name" : "bbc_led", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_fan", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_servo", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_control_fan", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_control_servo", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_name", "type": ["null" ,"string"], "default": null},
+    {"name" : "bbc_password", "type": ["null" ,"string"], "default": null},
+    {"name" : "timestamp", "type": ["null" ,"string"], "default": null}
+  ]
+}

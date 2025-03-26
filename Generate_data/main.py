@@ -1,3 +1,4 @@
+import requests
 import json
 import time
 import os
@@ -10,11 +11,87 @@ from confluent_kafka.serialization import StringSerializer, SerializationContext
 from confluent_kafka.schema_registry import Schema
 
 users = [
-    {"username": "Alice Johnson", "password": "444444"},
-    {"username": "Bob Smith", "password": "123456"},
-    {"username": "Charlie Brown", "password": "abcdfge"},
-    {"username": "David White", "password": "admin"},
+    {"username": "mark12", "password": "444444"},
+    {"username": "Smith23", "password": "123456"},
+    {"username": "Brown11", "password": "abcdfge"},
+    {"username": "David203", "password": "admin"},
 ]
+
+def generate_door_data(start_date="2024-01-01", end_date="2024-01-02"):
+    id_door = random.choice(['LOCK001', 'LOCK002', 'LOCK003'])
+    user = random.choice(users)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    random_time = start + timedelta(seconds=random.uniform(0, (end - start).total_seconds()))
+
+    return {
+        "id_door": id_door,
+        "bbc_servo": str(random.randint(0, 1)),
+        "bbc_name": str(user["username"]),
+        "bbc_password": str(user["password"]),
+        "timestamp": random_time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def generate_fan_data(start_date="2024-01-01", end_date="2024-01-02"):
+    id_fan = random.choice(['FAN001', 'FAN003', 'FAN002'])
+    user = random.choice(users)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    random_time = start + timedelta(seconds=random.uniform(0, (end - start).total_seconds()))
+
+    return {
+        "id_fan": id_fan,
+        "bbc_fan": str(random.randint(0, 1)),
+        "bbc_control_fan": str(random.randint(0, 100)),
+        "bbc_name": str(user["username"]),
+        "bbc_password": str(user["password"]),
+        "timestamp": random_time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def generate_humidity_data(start_date="2024-01-01", end_date="2024-01-02"):
+    id_humidity = random.choice(['Living Room', 'Bedroom', 'Kitchen', 'Office'])
+    user = random.choice(users)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    random_time = start + timedelta(seconds=random.uniform(0, (end - start).total_seconds()))
+
+    return {
+        "id_hum": id_humidity,
+        "bbc_hum": round(random.uniform(0, 100), 2),
+        "bbc_name": str(user["username"]),
+        "bbc_password": str(user["password"]),
+        "timestamp": random_time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def generate_led_data(start_date="2024-01-01", end_date="2024-01-02"):
+    id_led = random.choice(['LIGHT001', 'LIGHT002', 'LIGHT003'])
+    user = random.choice(users)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    random_time = start + timedelta(seconds=random.uniform(0, (end - start).total_seconds()))
+
+    return {
+        "id_led": id_led,
+        "bbc_led": str(random.randint(0, 1)),
+        "bbc_name": str(user["username"]),
+        "bbc_password": str(user["password"]),
+        "timestamp": random_time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+def generate_temp_data(start_date="2024-01-01", end_date="2024-01-02"):
+    id_temp = random.choice(['Living Room', 'Bedroom', 'Kitchen', 'Office'])
+    user = random.choice(users)
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    random_time = start + timedelta(seconds=random.uniform(0, (end - start).total_seconds()))
+
+    return {
+        "id_temp": id_temp,
+        "bbc_temp": round(random.uniform(0, 100), 2),
+        "bbc_name": str(user["username"]),
+        "bbc_password": str(user["password"]),
+        "timestamp": random_time.strftime("%Y-%m-%d %H:%M:%S")
+    }
 
 def generate_data(start_date="2024-01-01", end_date="2024-01-02"):
     user = random.choice(users)
@@ -70,16 +147,25 @@ def register_schema_if_needed(schema_registry_client, subject_name, schema_str):
         return None
 
 def main():
-    topics = ['YoloHome']
+    # topics = ['led_events', 'fan_events', 'door_events', 'humidity_events', 'temp_events']
     schema_registry_url = 'http://localhost:8082'
-    avro_schemas_path = "../Avro_schema/schema.avsc"
-
+    avro_schemas_path = "../Avro_schema/"
+    avro_serializers = {}
     schema_registry_client = SchemaRegistryClient({'url': schema_registry_url})
-    schema_str = load_avro_schema(avro_schemas_path)
 
-    register_schema_if_needed(schema_registry_client, "YoloSchema", schema_str)
+    for filename in os.listdir(avro_schemas_path):
+        if filename.endswith(".avsc"):
+            schema_path = os.path.join(avro_schemas_path, filename)
+            schema_str = load_avro_schema(schema_path)
 
-    avro_serializer = AvroSerializer(schema_registry_client, schema_str)
+            if schema_str:
+                subject_name = filename.replace(".avsc", "")
+                register_schema_if_needed(schema_registry_client, subject_name, schema_str)
+                avro_serializers[subject_name] = AvroSerializer(schema_registry_client, schema_str)
+
+    print("Danh sách AvroSerializer đã đăng ký: ", avro_serializers.keys())
+
+    topics = list(avro_serializers.keys())
 
     producer_config = {
         "bootstrap.servers": "localhost:9092",
@@ -89,18 +175,28 @@ def main():
         "value.serializer": None
     }
 
+    generate_data = {
+        "led_schema": generate_led_data,
+        "fan_schema": generate_fan_data,
+        "door_schema": generate_door_data,
+        "hum_schema": generate_humidity_data,
+        "tem_schema": generate_temp_data
+    }
+
     producer = SerializingProducer(producer_config)
     cur_time = datetime.now()
 
     while (datetime.now() - cur_time).seconds < 10000:
         topic = random.choice(topics)
-        data = generate_data()
-        avro_data = avro_serializer(data, SerializationContext(topic, MessageField.VALUE))
+        data = generate_data[topic]()
+        print(f"Topic: {topic}")
+        print(f"Data: {data}")
         try:
+            avro_data = avro_serializers[topic](data, SerializationContext(topic, MessageField.VALUE))
             print(f"Producing Avro: {data}")
             producer.produce(topic=topic, value=avro_data, on_delivery=delivery_report)
-            producer.poll(0)
-            time.sleep(5)
+            producer.poll(0.1)
+            time.sleep(1)
         except BufferError:
             print(f"Hàng đợi Producer đầy ({len(producer)} messages): Đang thử lại...")
             time.sleep(1)
